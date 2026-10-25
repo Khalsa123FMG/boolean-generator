@@ -8,10 +8,20 @@ button{font:inherit;padding:7px 14px;border:1px solid #c9ced8;background:#fff;bo
 .grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;margin:10px 0}.card,.tpl{background:#fff;border:1px solid #dde1e8;border-radius:12px;padding:16px}.tpl{margin:12px 0}
 textarea.tier,#io{font-family:ui-monospace,Consolas,monospace;font-size:13px;min-height:170px;resize:vertical}pre,code{font-family:ui-monospace,Consolas,monospace;font-size:12.5px;white-space:pre-wrap;word-break:break-word}pre{background:#f3f4f7;border-radius:8px;padding:10px;max-height:220px;overflow:auto}
 .meta{color:#5b6475;font-size:13px}.badge{font-size:12px;background:#e7edff;color:#1d4ed8;padding:2px 8px;border-radius:999px;font-weight:500}ol li{margin:4px 0}table{border-collapse:collapse;width:100%;background:#fff}td,th{border-bottom:1px solid #e3e6ec;padding:8px;text-align:left;vertical-align:top;font-size:14px}#msg{color:#166534;font-weight:500;min-height:1em}
+.jdbox{border-color:#1d4ed8;margin-top:4px}.jdbox h2{margin-top:0;font-size:20px}#jd{min-height:180px}label.filebtn{display:inline-flex;align-items:center;width:auto;margin:0;padding:7px 14px;border:1px solid #c9ced8;background:#fff;border-radius:8px;cursor:pointer;color:#1d2330;font-size:16px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:4px 8px 4px 10px;font-size:13px;background:#e7edff;border:1px solid #d5def8;color:#1d2330}.chip.nice{background:#f3f4f7;border-color:#e3e6ec}.chip.excl{background:#fde8e8;border-color:#f6c9c9}.chip .kind{color:#5b6475;font-size:11px;text-transform:uppercase;letter-spacing:.03em}.chip button{border:0;background:transparent;padding:0 2px;line-height:1;font-size:16px}#jdstatus.warn{color:#9f1239;font-weight:500}
 </style></head><body><div class="wrap">
 <h1>Boolean Generator</h1><p class="sub">Khalsa's three-tier search method: fill in the job, copy Tier 1, and only widen when the results run thin.</p>
 <div class="seg" id="tabs"><button data-t="gen">Generator</button><button data-t="tpl">Templates (<span id="tcount"></span>)</button></div><p id="msg"></p>
 <section id="gen">
+<div class="card jdbox" id="jdbox">
+<h2>Paste or upload JD / hiring manager comments</h2>
+<p class="meta">Paste the job description, hiring manager notes, or both. Or upload a .txt, .docx or .pdf. Reading and the search stay in this browser.</p>
+<textarea id="jd" placeholder="Paste the job description or hiring manager comments here…"></textarea>
+<div class="seg"><label class="filebtn">Upload .txt, .docx or .pdf<input id="jdfile" type="file" accept=".txt,.docx,.pdf,text/plain,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden></label><button class="pri" id="jdbuild" type="button">Build search from this</button></div>
+<p class="meta" id="jdstatus"></p>
+<div id="jdchips"></div>
+</div>
 <h2>How to use</h2><ol>
 <li><b>Fill in the job.</b> Title, location, seniority and must-have quals from the order. The role family is picked from the title; change it if wrong.</li>
 <li><b>Run Tier 1 first.</b> Exact title, must-haves and a council anchor on fresh CVs (56 days).</li>
@@ -224,7 +234,8 @@ const EXAMPLES = [
 
 var KEYS=["cvl","reed","bh","li"],PN={cvl:"CV-Library",reed:"Reed",bh:"Bullhorn",li:"LinkedIn Recruiter"};
 var NOTE={cvl:"CV-Library: lowercase and/or/not are fine. Set CV age with 'CV updated within' and radius with Distance.",reed:"Reed: upper-case AND/OR/NOT, quotes for phrases. Set 'CV last updated' and Distance in the filters.",bh:"Bullhorn: upper-case operators, multi-word phrases in double quotes, no stray spaces inside quotes. Filter by Date Last Modified for CV age.",li:"LinkedIn Recruiter: upper-case operators, no wildcards (*), quotes for phrases. No CV-age filter, so use 'Open to work' and recent activity."};
-var st={plat:"cvl",edits:{},mine:[],storeOk:true};
+var st={plat:"cvl",edits:{},mine:[],storeOk:true,jdOn:false};
+var jdMeta={};
 function $(id){return document.getElementById(id)}
 function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 function v(id){return $(id).value}
@@ -256,6 +267,7 @@ function renderGen(){
  document.querySelectorAll("[data-copy]").forEach(function(b){b.onclick=function(){copy($(b.dataset.copy).value,b)}});
  document.querySelectorAll("[data-reset]").forEach(function(b){b.onclick=function(){delete st.edits[b.dataset.reset];renderGen()}});
  document.querySelectorAll("#plats button").forEach(function(b){b.classList.toggle("on",b.dataset.p===st.plat)});
+ renderJdChips();
 }
 function load(){try{var r=localStorage.getItem(KEY);st.mine=r?JSON.parse(r):[];st.storeOk=true}catch(e){st.storeOk=false}}
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(st.mine));st.storeOk=true}catch(e){st.storeOk=false}}
@@ -265,7 +277,7 @@ function saveTpl(){var T=tiers(),fam=famNow(),name=v("tplname").trim()||v("title
  st.mine=[{id:String(Date.now()),name:name,family:fam.id,familyLabel:fam.label,author:v("author").trim()||"Unknown",date:new Date().toLocaleDateString("en-GB"),inputs:ins,tiers:tt}].concat(st.mine.filter(function(m){return m.name!==name}));
  persist();msg('Saved "'+name+'".'+(st.storeOk?"":" (Browser storage unavailable: export before closing.)"));renderTpl()}
 function loadTpl(t){["title","loc","sen","pay","must","nice","excl"].forEach(function(k){$(k).value=t.inputs[k]||""});$("fam").value=t.inputs.famSel||"auto";
- st.edits={};t.tiers.forEach(function(tr,i){KEYS.forEach(function(p){if(tr.str[p])st.edits[p+i]=tr.str[p]})});$("tplname").value=t.name;tab("gen");renderGen();msg('Loaded "'+t.name+'".')}
+ st.jdOn=false;st.edits={};t.tiers.forEach(function(tr,i){KEYS.forEach(function(p){if(tr.str[p])st.edits[p+i]=tr.str[p]})});$("tplname").value=t.name;tab("gen");renderGen();msg('Loaded "'+t.name+'".')}
 function all(){return BAKED.concat(st.mine)}
 function renderTpl(){var q=v("q").toLowerCase(),ff=v("ff"),p=v("tplat");
  var list=all().filter(function(t){return(ff==="all"||t.family===ff)&&(!q||(t.name+" "+t.inputs.title+" "+t.familyLabel+" "+t.author).toLowerCase().indexOf(q)>=0)});
@@ -282,6 +294,340 @@ function renderTpl(){var q=v("q").toLowerCase(),ff=v("ff"),p=v("tplat");
  $("storenote").textContent=st.storeOk?"Templates you save stay in this browser on this computer. To share, Export and send the file; colleagues Import it.":"This browser won't let the page store anything, so templates last only until you close it. Export before closing.";
 }
 function tab(n){$("gen").hidden=n!=="gen";$("tpl").hidden=n!=="tpl";document.querySelectorAll("#tabs button").forEach(function(b){b.classList.toggle("on",b.dataset.t===n)});if(n==="tpl")renderTpl()}
+function jdStatus(text,bad){var el=$("jdstatus");if(!el)return;el.textContent=text;el.classList.toggle("warn",!!bad)}
+function chipsFromFields(){
+ var items=[];
+ [["must","must"],["nice","nice"],["excl","excl"]].forEach(function(pair){
+  split(v(pair[0])).forEach(function(t){
+   var meta=jdMeta[t.toLowerCase()]||{kind:pair[1]==="excl"?"exclude":"term"};
+   items.push({text:t,bucket:pair[1],kind:meta.kind});
+  });
+ });
+ return items;
+}
+function renderJdChips(){
+ var box=$("jdchips");if(!box)return;
+ if(!st.jdOn){box.innerHTML="";return}
+ var items=chipsFromFields();
+ if(!items.length){box.innerHTML='<p class="meta">No terms left. Add must-haves below, or build the search again.</p>';return}
+ var h='<p class="meta">Extracted terms. Remove any you do not want and the three searches update. Must-haves go on Tier 1 with the title and the council anchor. Nice-to-haves stay in the field below for when Tier 1 is too thin.</p><div class="chips">';
+ items.forEach(function(it,i){
+  h+='<span class="chip '+it.bucket+'"><span class="kind">'+esc(it.kind)+'</span> '+esc(it.text)+' <button type="button" data-jdrm="'+i+'" aria-label="Remove '+esc(it.text)+'">×</button></span>';
+ });
+ box.innerHTML=h+'</div>';
+}
+function cleanTitle(s){
+ s=String(s||"").replace(/\s+/g," ").trim();
+ s=s.replace(/\s*[\(\[][^)\]]*[\)\]]\s*$/,"").replace(/\s+[-–—|]\s+.*$/,"").replace(/[.,;:]+$/,"").trim();
+ if(s.length>80)s=s.slice(0,80).trim();
+ return s;
+}
+function looksLikeTitle(s){
+ if(!s||s.length<4||s.length>70||/[.!?]/.test(s))return false;
+ if(/^(about|essential|desirable|job description|person specification|role profile|hiring manager|salary|location|contract)\b/i.test(s))return false;
+ return /\b(officer|manager|advisor|adviser|assistant|director|head|lead|analyst|practitioner|worker|consultant|engineer|surveyor|accountant|coordinator|co-ordinator|caseworker|specialist|partner|nurse|chef|commissioner|solicitor|lawyer|administrator|apprentice)\b/i.test(s);
+}
+function detectTitle(text){
+ var m=text.match(/(?:^|\n)\s*(?:job\s*title|post\s*title|position|vacancy|job\s*role|role)\s*[:\-–]\s*([^\n]+)/i);
+ if(m){var t=cleanTitle(m[1]);if(t&&t.length<70&&!/[.]/.test(t))return t}
+ var s=text.match(/\b(?:seeking|looking for|recruiting)\s+(?:an?\s+|the\s+)?([A-Z][A-Za-z][^.\n]{2,60}?)(?:\s+to\b|\s+who\b|\s+for\b|[.,])/);
+ if(s){var t2=cleanTitle(s[1]);if(looksLikeTitle(t2))return t2}
+ var lines=text.split("\n");
+ for(var i=0;i<lines.length&&i<10;i++){var c=cleanTitle(lines[i].replace(/^[^A-Za-z]+/,""));if(looksLikeTitle(c))return c}
+ return "";
+}
+function detectSeniority(title){
+ var t=(title||"").toLowerCase();
+ if(/\b(head of|assistant director|director|chief|cio|cto)\b/.test(t))return "head";
+ if(/\b(manager|team leader)\b/.test(t))return "manager";
+ if(/\b(senior|principal)\b/.test(t))return "senior";
+ if(/\b(assistant|trainee|apprentice|junior|graduate)\b/.test(t))return "junior";
+ return "mid";
+}
+function tidyLoc(s){
+ s=String(s||"").replace(/\s+/g," ").trim().replace(/\s*[\(\[][^)\]]*[\)\]]\s*$/,"").replace(/[.,;]+$/,"");
+ s=s.replace(/\s+(?:permanent|full[- ]time|part[- ]time|hybrid|remote|on[- ]site|office based).*$/i,"");
+ return s.trim();
+}
+function detectLocation(text){
+ var m=text.match(/(?:^|\n)\s*(?:location|based in|base|workplace|work location|place of work)\s*[:\-–]\s*([^\n]+)/i);
+ var loc=m?tidyLoc(m[1]):"";
+ if(!loc){m=text.match(/\b(London Borough of [A-Z][A-Za-z .'-]{2,40})/);if(m)loc=tidyLoc(m[1])}
+ if(!loc){m=text.match(/\b((?:Royal Borough of |Borough of |City of )[A-Z][A-Za-z .'-]{2,40})/);if(m)loc=tidyLoc(m[1])}
+ if(!loc){m=text.match(/\b([A-Z][A-Za-z .'-]{2,40}?)\s+(?:City |Borough |County |District |Metropolitan Borough )?Council\b/);if(m)loc=tidyLoc(m[1])}
+ var pc=text.match(/\b([A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2})\b/);
+ if(loc&&pc&&loc.toUpperCase().indexOf(pc[1].replace(/\s+/g,"").toUpperCase())<0&&loc.toUpperCase().indexOf(pc[1].toUpperCase())<0&&loc.length<48)loc=loc+", "+pc[1].toUpperCase().replace(/\s+/," ");
+ else if(!loc&&pc)loc=pc[1].toUpperCase();
+ return loc;
+}
+function detectPay(text){
+ var ir="";
+ if(/\boutside\s+ir35\b/i.test(text))ir=" outside IR35";
+ else if(/\binside\s+ir35\b/i.test(text))ir=" inside IR35";
+ var re=/£\s?\d{1,3}(?:,\d{3})+(?:\.\d+)?(?:\s*(?:-|–|to)\s*£?\s?\d{1,3}(?:,\d{3})+(?:\.\d+)?)?(?:\s*(?:per\s+annum|per\s+year|p\.a\.|pa|per\s+hour|an hour|\/\s*hr|per\s+day|\/\s*day))?/i;
+ var m=text.match(re);
+ if(!m)m=text.match(/£\s?\d+(?:\.\d+)?\s*(?:k|K|\/\s*hr|per\s+hour|ph)\b/);
+ if(!m){var day=text.match(/£?\s?(\d{2,4})\s*(?:per\s+day|\/\s*day|a day)\b/i);return day?("£"+day[1]+"/day"+ir).trim():ir.trim()}
+ var s=m[0].replace(/\s+/g," ").replace(/\s*-\s*/," - ").trim();
+ if(!/hour|hr|day|annum|year|p\.a|pa|k/i.test(s)){
+  if(/,\d{3}/.test(s))s+=" per annum";
+ }
+ return (s+ir).trim();
+}
+function detectFamily(title,text){
+ var hay=" "+(title||"").toLowerCase()+" ";
+ var hit=false,bestLen=0,best="";
+ FAMS.forEach(function(f){f.match.forEach(function(m){var mm=m.trim();if(mm&&hay.indexOf(mm)>=0){hit=true;if(mm.length>bestLen){bestLen=mm.length;best=f.id}}})});
+ if(hit)return best;
+ var body=(text||"").toLowerCase(),top=0,topId="";
+ FAMS.forEach(function(f){var sc=0;f.match.forEach(function(m){var mm=m.trim();if(mm.length<3)return;var from=0,n=0,idx;while((idx=body.indexOf(mm,from))>=0&&n<6){n++;sc+=mm.length;from=idx+mm.length}});if(sc>top){top=sc;topId=f.id}});
+ return topId||guess(title||"");
+}
+function splitSections(text){
+ var essential=[],desirable=[],comments=[],other=[],cur=other;
+ String(text||"").split("\n").forEach(function(line){
+  var raw=line.trim();
+  if(!raw){cur.push("");return}
+  var inline=raw.match(/^(essential(?:\s+criteria)?|desirable(?:\s+criteria)?|hiring manager comments|hm comments|manager comments|recruiter notes|client comments)\s*[:\-–]\s*(.*)$/i);
+  if(inline){
+   var name=inline[1].toLowerCase();
+   cur=name.indexOf("desirable")===0?desirable:(/comment|notes/.test(name)?comments:essential);
+   if(inline[2])cur.push(inline[2]);
+   return;
+  }
+  var head=raw.replace(/[:\-–]\s*$/,"");
+  if(head.length<70){
+   if(/^(essential|essential criteria|key requirements|requirements|must[- ]haves?|skills and experience|about you)$/i.test(head)){cur=essential;return}
+   if(/^(desirable|desirable criteria|nice[- ]to[- ]haves?|preferred)$/i.test(head)){cur=desirable;return}
+   if(/hiring manager comments|hm comments|recruiter notes|client comments|manager comments/i.test(head)){cur=comments;return}
+  }
+  cur.push(raw);
+ });
+ return {essential:essential.join("\n"),desirable:desirable.join("\n"),comments:comments.join("\n"),other:other.join("\n")};
+}
+function withYear(name,m){var y=String(m).match(/\b(?:19|20)\d{2}\b/);return name+(y?" "+y[0]:"")}
+function findMatches(re,text){
+ var out=[],r=new RegExp(re.source,re.flags.indexOf("g")>=0?re.flags:re.flags+"g"),m;
+ while((m=r.exec(text))){out.push(m[0]);if(m.index===r.lastIndex)r.lastIndex++}
+ return out;
+}
+var JD_SYSTEMS=[["Northgate",/\bNorthgate(?:\s+Housing|\s+Public Services)?\b/i],["Civica",/\bCivica(?:\s+Cx)?\b/i],["Mosaic",/\bMosaic\b/i],["Liquidlogic",/\bLiquid\s*logic\b/i],["Locata",/\bLocata\b/i],["Abritas",/\bAbritas\b/i],["Orchard",/\bOrchard(?:\s+Housing)?\b/i],["Aareon",/\bAareon(?:\s+QL)?\b/i],["Academy",/\bAcademy(?:\s+(?:Housing|Revenues))?\b/],["OHMS",/\bOHMS\b/],["SX3",/\bSX3\b/i],["Jigsaw",/\bJigsaw\b/i],["Keystone",/\bKeystone\b/i],["ActiveH",/\bActiveH\b/i],["OpenHousing",/\bOpen\s*Housing\b/i],["IBS",/\bIBS\b/],["Anite",/\bAnite\b/i],["Capita",/\bCapita(?:\s+One)?\b/],["Mayrise",/\bMayrise\b/i],["Alloy",/\bAlloy\b/],["Oracle",/\bOracle\b/],["SAP",/\bSAP\b/],["Power BI",/\bPower\s*BI\b/i],["iTrent",/\biTrent\b/i],["NEC Housing",/\bNEC\s+Housing\b/i],["Idox",/\bIdox(?:\s+Uniform)?\b|\bIDOX(?:\s+Uniform)?\b/i],["HomeHunt",/\bHome\s*Hunt\b/i],["Frameworki",/\bFrameworki\b/i],["CareDirector",/\bCare\s*Director\b/i],["Servelec",/\bServelec\b/i],["Swift",/\bSwift\b/]];
+var JD_LEGS=[
+ [/\bHousing Act(?:\s+(?:19|20)\d{2})?/gi,function(m){return withYear("Housing Act",m)}],
+ [/\bHomelessness Reduction Act(?:\s+(?:19|20)\d{2})?/gi,function(m){return withYear("Homelessness Reduction Act",m)}],
+ [/\bHomelessness Act(?:\s+(?:19|20)\d{2})?/gi,function(m){return withYear("Homelessness Act",m)}],
+ [/\bLocalism Act(?:\s+(?:19|20)\d{2})?/gi,function(m){return withYear("Localism Act",m)}],
+ [/\bCare Act(?:\s+(?:19|20)\d{2})?/gi,function(m){return withYear("Care Act",m)}],
+ [/\bChildren and Families Act(?:\s+(?:19|20)\d{2})?/gi,function(m){return withYear("Children and Families Act",m)}],
+ [/\bChildren Act(?:\s+(?:19|20)\d{2})?/gi,function(m){return withYear("Children Act",m)}],
+ [/\bMental Capacity Act(?:\s+(?:19|20)\d{2})?/gi,function(m){return withYear("Mental Capacity Act",m)}],
+ [/\bMental Health Act(?:\s+(?:19|20)\d{2})?/gi,function(m){return withYear("Mental Health Act",m)}],
+ [/\bEquality Act(?:\s+(?:19|20)\d{2})?/gi,function(m){return withYear("Equality Act",m)}],
+ [/\bData Protection Act(?:\s+(?:19|20)\d{2})?/gi,function(m){return withYear("Data Protection Act",m)}],
+ [/\bUK GDPR\b|\bGDPR\b/gi,function(m){return /uk/i.test(m)?"UK GDPR":"GDPR"}],
+ [/\bSEND Code of Practice\b/gi,function(){return "SEND Code of Practice"}],
+ [/\bBuilding Safety Act(?:\s+(?:19|20)\d{2})?/gi,function(m){return withYear("Building Safety Act",m)}],
+ [/\bBuilding Regulations\b/gi,function(){return "Building Regulations"}],
+ [/\bProcurement Act(?:\s+(?:19|20)\d{2})?/gi,function(m){return withYear("Procurement Act",m)}],
+ [/\bPublic Contracts Regulations(?:\s+(?:19|20)\d{2})?|\bPCR\s*2015\b/gi,function(m){return /PCR/i.test(m)?"PCR 2015":withYear("Public Contracts Regulations",m)}],
+ [/\bTown and Country Planning Act(?:\s+(?:19|20)\d{2})?/gi,function(m){return withYear("Town and Country Planning Act",m)}],
+ [/\bEnvironmental Protection Act(?:\s+(?:19|20)\d{2})?/gi,function(m){return withYear("Environmental Protection Act",m)}],
+ [/\bLocal Government Act(?:\s+(?:19|20)\d{2})?/gi,function(m){return withYear("Local Government Act",m)}],
+ [/\bRegulation 44\b/gi,function(){return "Regulation 44"}],
+ [/\bEYFS\b/g,function(){return "EYFS"}],
+ [/\bsection\s*202\b|\bs\.?\s*202\b|\bs202\b/gi,function(){return "s202"}],
+ [/\bsection\s*106\b|\bs\.?\s*106\b|\bs106\b/gi,function(){return "S106"}],
+ [/\bsection\s*20\b|\bs\.?\s*20\b|\bs20\b/gi,function(){return "s20"}],
+ [/\bsection\s*21\b|\bs\.?\s*21\b|\bs21\b/gi,function(){return "s21"}],
+ [/\bPart\s*(?:VII|7)\b/gi,function(){return "Part 7"}]
+];
+var JD_QUALS=[["CIH",/\bCIH\b/],["CIPD",/\bCIPD\b/],["CIPFA",/\bCIPFA\b/i],["CIMA",/\bCIMA\b/],["ACCA",/\bACCA\b/],["ACA",/\bACA\b/],["CCAB",/\bCCAB\b/],["RTPI",/\bMRTPI\b|\bRTPI\b/],["RICS",/\bMRICS\b|\bRICS\b/],["MCIPS",/\bMCIPS\b|\bCIPS\b/],["PRINCE2",/\bPRINCE2\b/i],["NEBOSH",/\bNEBOSH\b/i],["IOSH",/\bIOSH\b/i],["NVQ level 3",/\bNVQ\s*(?:level\s*)?3\b|\bNVQ\s*L3\b/i],["NVQ 4",/\bNVQ\s*(?:level\s*)?4\b/i],["NVQ level 5",/\bNVQ\s*(?:level\s*)?5\b|\bQCF\s*5\b/i],["IRRV",/\bIRRV\b/],["CIEH",/\bCIEH\b/],["EHORB",/\bEHORB\b/],["AMHP",/\bAMHP\b/],["DIPSW",/\bDIPSW\b|\bCQSW\b/]];
+var JD_REGS=[["Ofsted",/\bOfsted\b/i],["CQC",/\bCQC\b/],["Housing Ombudsman",/\bHousing Ombudsman\b/i],["Regulator of Social Housing",/\bRegulator of Social Housing\b|\bRSH\b/],["Social Work England",/\bSocial Work England\b/i],["Environment Agency",/\bEnvironment Agency\b/i],["Food Standards Agency",/\bFood Standards Agency\b/i],["HSE",/\bHSE\b/],["ICO",/\bICO\b/],["Ombudsman",/\bOmbudsman\b/i]];
+function bucketFromMatch(match,sections){
+ var needle=String(match||"").toLowerCase();
+ if(!needle)return "must";
+ var inD=sections.desirable.toLowerCase().indexOf(needle)>=0;
+ var elsewhere=(sections.essential+"\n"+sections.other+"\n"+sections.comments).toLowerCase().indexOf(needle)>=0;
+ if(inD&&!elsewhere)return "nice";
+ return "must";
+}
+function addTerm(terms,t){
+ t.text=String(t.text||"").replace(/\s+/g," ").trim();
+ if(!t.text||t.text.length>40||t.text.split(" ").length>6)return;
+ var k=t.text.toLowerCase();
+ for(var i=0;i<terms.length;i++){
+  if(terms[i].text.toLowerCase()===k){
+   if(t.bucket==="must"||t.bucket==="excl")terms[i].bucket=t.bucket;
+   return;
+  }
+ }
+ if((t.kind==="skill"||t.kind==="context"||t.kind==="comment")&&terms.some(function(e){
+  if(e.kind==="skill"||e.kind==="context"||e.kind==="comment")return false;
+  var ek=e.text.toLowerCase();
+  return k.indexOf(ek)>=0||ek.indexOf(k)>=0;
+ }))return;
+ terms.push({text:t.text,bucket:t.bucket,kind:t.kind});
+}
+function tidyTerm(s){
+ s=String(s||"").replace(/^[\s:.\-–]+/,"").replace(/[\s.,;:]+$/,"").replace(/^(?:a|an|the)\s+/i,"").replace(/\s+/g," ").trim();
+ if(!s||s.length>40||s.split(" ").length>6)return "";
+ return s;
+}
+function parseCommentLine(s){
+ s=String(s||"").replace(/^[\s\-*•\u2022\d.)]+/,"").trim();
+ if(!s)return null;
+ var m=s.match(/^(?:must have|must-have|needs? to have|essential(?:ly)?|required)\s+(.+)$/i);
+ if(m)return {text:tidyTerm(m[1]),bucket:"must",kind:"comment"};
+ m=s.match(/^(?:no|not|exclude|avoid|don'?t want|do not want|without)\s+(.+)$/i);
+ if(m)return {text:tidyTerm(m[1]),bucket:"excl",kind:"exclude"};
+ if(/\b(prefer(?:red|ably)?|nice to have|ideally|desirable|bonus)\b/i.test(s)){
+  var t=s.replace(/\b(is\s+)?(preferred|preferably|prefer|nice to have|ideally|ideal|desirable|a bonus|bonus)\b/ig," ");
+  t=t.replace(/^ex[-\s]+/i,"");
+  t=tidyTerm(t);
+  if(t)return {text:t,bucket:"nice",kind:"comment"};
+ }
+ return null;
+}
+function skillFromBullet(line){
+ var s=String(line||"").replace(/^[\s\-*•\u2022]+/,"").trim();
+ var m=s.match(/^(?:knowledge of|experience (?:of|using|with|in)|proficient in|skilled in)\s+(.+)$/i);
+ if(!m)return "";
+ var bit=m[1].split(/\b(?:in a|in the|for a|for the|and|or|with|to|particularly|,|\.)\b/i)[0];
+ return tidyTerm(bit);
+}
+function capTerms(terms){
+ var pri={system:1,legislation:2,qualification:3,regulator:4,comment:5,skill:6,context:7,exclude:1};
+ var musts=terms.filter(function(t){return t.bucket==="must"}).sort(function(a,b){return (pri[a.kind]||9)-(pri[b.kind]||9)});
+ musts.forEach(function(t,i){if(i>=5)t.bucket="nice"});
+ var nices=terms.filter(function(t){return t.bucket==="nice"}).sort(function(a,b){return (pri[a.kind]||9)-(pri[b.kind]||9)});
+ var niceKeep={};
+ nices.forEach(function(t,i){if(i<8)niceKeep[t.text.toLowerCase()]=1});
+ return terms.filter(function(t){if(t.bucket==="excl"||t.bucket==="must")return true;return !!niceKeep[t.text.toLowerCase()]});
+}
+function extractTerms(text,sections,famId){
+ var terms=[];
+ JD_SYSTEMS.forEach(function(row){findMatches(row[1],text).forEach(function(hit){addTerm(terms,{text:row[0],bucket:bucketFromMatch(hit,sections),kind:"system"})})});
+ JD_LEGS.forEach(function(row){findMatches(row[0],text).forEach(function(hit){addTerm(terms,{text:row[1](hit),bucket:bucketFromMatch(hit,sections),kind:"legislation"})})});
+ JD_QUALS.forEach(function(row){findMatches(row[1],text).forEach(function(hit){addTerm(terms,{text:row[0],bucket:bucketFromMatch(hit,sections),kind:"qualification"})})});
+ JD_REGS.forEach(function(row){findMatches(row[1],text).forEach(function(hit){addTerm(terms,{text:row[0],bucket:bucketFromMatch(hit,sections),kind:"regulator"})})});
+ sections.essential.split("\n").forEach(function(line){var skill=skillFromBullet(line);if(skill)addTerm(terms,{text:skill,bucket:"must",kind:"skill"})});
+ var fam=FAMS.find(function(f){return f.id===famId});
+ var phrases=(fam?fam.context:[]).concat(["homelessness","temporary accommodation","rent arrears","EHCP","safeguarding"]);
+ phrases.forEach(function(p){
+  var re=new RegExp("\\b"+p.trim().replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"\\b","i");
+  if(!re.test(text))return;
+  var where=bucketFromMatch(p,sections);
+  addTerm(terms,{text:p.trim(),bucket:where==="must"?"nice":where,kind:"context"});
+ });
+ sections.comments.split(/[\n.;]+/).forEach(function(part){var item=parseCommentLine(part);if(item)addTerm(terms,item)});
+ return capTerms(terms);
+}
+function analyseJd(raw){
+ var text=String(raw||"").replace(/\r/g,"\n").replace(/\u00a0/g," ").trim();
+ if(text.length>200000)text=text.slice(0,200000);
+ var title=detectTitle(text);
+ return {title:title,sen:detectSeniority(title),loc:detectLocation(text),pay:detectPay(text),famId:detectFamily(title,text),terms:extractTerms(text,splitSections(text),detectFamily(title,text))};
+}
+function buildFromJd(){
+ var text=v("jd").trim();
+ if(!text){jdStatus("Paste a job description or upload a file first.",true);return}
+ var a=analyseJd(text);
+ if(!a.title&&!a.terms.length){jdStatus("Couldn't find a job title or search terms. Paste a bit more of the JD, including the title.",true);return}
+ $("title").value=a.title||"";
+ $("loc").value=a.loc||"";
+ $("pay").value=a.pay||"";
+ $("sen").value=a.sen||"mid";
+ if(a.famId&&FAMS.some(function(f){return f.id===a.famId}))$("fam").value=a.famId;
+ jdMeta={};
+ var buckets={must:[],nice:[],excl:[]};
+ a.terms.forEach(function(t){var k=t.text.toLowerCase();if(jdMeta[k])return;jdMeta[k]={kind:t.kind};(buckets[t.bucket]||buckets.must).push(t.text)});
+ $("must").value=buckets.must.join(", ");
+ $("nice").value=buckets.nice.join(", ");
+ $("excl").value=buckets.excl.join(", ");
+ st.jdOn=true;st.edits={};renderGen();
+ var fam=FAMS.find(function(f){return f.id===a.famId});
+ var senLabel=($("sen").selectedOptions[0]&&$("sen").selectedOptions[0].textContent)||a.sen;
+ var bits=[a.title,fam?fam.label:"",senLabel,a.loc].filter(Boolean);
+ jdStatus("Built a search"+(bits.length?" for "+bits.join(" · "):"")+". Tweak the chips or the fields, then copy Tier 1.",false);
+}
+function loadPdfJs(){
+ if(window.pdfjsLib)return Promise.resolve(window.pdfjsLib);
+ return new Promise(function(resolve,reject){
+  var s=document.createElement("script");
+  s.src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+  s.onload=function(){if(!window.pdfjsLib){reject(new Error("pdf.js"));return}pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";resolve(window.pdfjsLib)};
+  s.onerror=function(){reject(new Error("pdf.js"))};
+  document.head.appendChild(s);
+ });
+}
+function decodeXml(s){return s.replace(/&amp;/g,"&").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&#(\d+);/g,function(_,n){return String.fromCharCode(+n)})}
+function docxXmlToText(xml){
+ return xml.split(/<w:p[\s>]/).map(function(p){var bits=[],re=/<w:t[^>]*>([\s\S]*?)<\/w:t>/g,m;while((m=re.exec(p)))bits.push(decodeXml(m[1]));return bits.join("")}).join("\n").replace(/\n{3,}/g,"\n\n").trim();
+}
+async function unzipDocxXml(buf){
+ var u8=buf instanceof Uint8Array?buf:new Uint8Array(buf);
+ var view=new DataView(u8.buffer,u8.byteOffset,u8.byteLength);
+ var eocd=-1,min=Math.max(0,u8.length-22-65535);
+ for(var i=u8.length-22;i>=min;i--){if(view.getUint32(i,true)===0x06054b50){eocd=i;break}}
+ if(eocd<0)throw new Error("zip");
+ var cdSize=view.getUint32(eocd+12,true),cdOff=view.getUint32(eocd+16,true);
+ if(cdOff===0xffffffff||cdSize===0xffffffff)throw new Error("zip64");
+ var p=cdOff,end=cdOff+cdSize,target=null,method=0,compSize=0,localOff=0;
+ while(p+46<=end){
+  if(view.getUint32(p,true)!==0x02014b50)break;
+  var methodI=view.getUint16(p+10,true),compI=view.getUint32(p+20,true),nameLen=view.getUint16(p+28,true),extraLen=view.getUint16(p+30,true),commentLen=view.getUint16(p+32,true),localI=view.getUint32(p+42,true);
+  var fname=new TextDecoder().decode(u8.subarray(p+46,p+46+nameLen));
+  if(fname.replace(/\\/g,"/").toLowerCase()==="word/document.xml"){target=fname;method=methodI;compSize=compI;localOff=localI;break}
+  p+=46+nameLen+extraLen+commentLen;
+ }
+ if(!target)throw new Error("document");
+ var ln=view.getUint16(localOff+26,true),le=view.getUint16(localOff+28,true),start=localOff+30+ln+le;
+ var comp=u8.subarray(start,start+compSize);
+ if(method===0)return new TextDecoder().decode(comp);
+ if(method!==8||typeof DecompressionStream==="undefined")throw new Error("deflate");
+ var stream=new Blob([comp]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+ var out=await new Response(stream).arrayBuffer();
+ return new TextDecoder().decode(out);
+}
+async function readDocx(buf){return docxXmlToText(await unzipDocxXml(buf))}
+async function readPdf(buf){
+ var lib=await loadPdfJs();
+ var task=lib.getDocument({data:buf instanceof Uint8Array?buf:new Uint8Array(buf),isEvalSupported:false,disableFontFace:true});
+ var pdf=await task.promise,parts=[];
+ for(var i=1;i<=pdf.numPages;i++){
+  var page=await pdf.getPage(i),content=await page.getTextContent(),line="",lastY=null;
+  content.items.forEach(function(it){
+   var y=it.transform?it.transform[5]:null;
+   if(line&&lastY!==null&&y!==null&&Math.abs(y-lastY)>3){parts.push(line.trim());line=""}
+   if(it.str){if(line&&!/\s$/.test(line)&&!/^\s/.test(it.str))line+=" ";line+=it.str}
+   if(it.hasEOL){if(line.trim())parts.push(line.trim());line="";lastY=null}
+   else if(y!==null)lastY=y;
+  });
+  if(line.trim())parts.push(line.trim());
+  parts.push("");
+ }
+ var text=parts.join("\n").replace(/\n{3,}/g,"\n\n").trim();
+ if(!text)throw new Error("empty");
+ return text;
+}
+async function readUpload(file){
+ var name=(file.name||"").toLowerCase(),type=file.type||"";
+ if(name.endsWith(".txt")||type==="text/plain")return await file.text();
+ if(name.endsWith(".docx")||type.indexOf("wordprocessingml")>=0)return await readDocx(await file.arrayBuffer());
+ if(name.endsWith(".pdf")||type==="application/pdf")return await readPdf(await file.arrayBuffer());
+ throw new Error("type");
+}
+function onJdFile(e){
+ var f=e.target.files&&e.target.files[0];
+ e.target.value="";
+ if(!f)return;
+ jdStatus("Reading "+f.name+"…",false);
+ readUpload(f).then(function(text){
+  if(!text||!String(text).trim())throw new Error("empty");
+  $("jd").value=String(text).trim();
+  jdStatus("Loaded "+f.name+". Check the text, then press Build search from this.",false);
+ }).catch(function(){jdStatus("Couldn't read that file. Paste the text into the box instead.",true)});
+}
 function init(){
  var fo='<option value="auto">Auto from title</option>'+FAMS.map(function(f){return'<option value="'+f.id+'">'+esc(f.label)+'</option>'}).join("");$("fam").innerHTML=fo;
  $("ff").innerHTML='<option value="all">All families</option>'+FAMS.map(function(f){return'<option value="'+f.id+'">'+esc(f.label)+'</option>'}).join("")+'<option value="other">Other / specialist</option>';
@@ -292,6 +638,9 @@ function init(){
  ["title","loc","pay","must","nice","excl"].forEach(function(id){$(id).addEventListener("input",renderGen)});["sen","fam"].forEach(function(id){$(id).addEventListener("change",renderGen)});
  $("q").addEventListener("input",renderTpl);["ff","tplat"].forEach(function(id){$(id).addEventListener("change",renderTpl)});
  $("save").onclick=saveTpl;
+ $("jdbuild").onclick=buildFromJd;
+ $("jdfile").onchange=onJdFile;
+ $("jdchips").onclick=function(e){var b=e.target.closest("[data-jdrm]");if(!b)return;var items=chipsFromFields(),it=items[+b.getAttribute("data-jdrm")];if(!it)return;var id=it.bucket==="must"?"must":it.bucket==="nice"?"nice":"excl";$(id).value=split(v(id)).filter(function(x){return x.toLowerCase()!==it.text.toLowerCase()}).join(", ");st.edits={};renderGen()};
  $("exp").onclick=function(){var j=JSON.stringify(st.mine,null,1);$("io").value=j;var a=document.createElement("a");a.href=URL.createObjectURL(new Blob([j],{type:"application/json"}));a.download="boolean-templates.json";document.body.appendChild(a);a.click();a.remove()};
  $("impfile").onchange=function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){$("io").value=r.result;imp()};r.readAsText(f)};
  $("imp").onclick=imp;
