@@ -1,0 +1,305 @@
+<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="robots" content="noindex,nofollow"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Boolean Generator</title>
+<style>
+*{box-sizing:border-box}body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:0;background:#f6f7f9;color:#1d2330}
+.wrap{max-width:1200px;margin:0 auto;padding:24px}h1{margin:0 0 4px;font-size:26px}h2{font-size:18px;margin:28px 0 10px}h3{margin:0 0 8px;font-size:15px}h4{margin:0 0 4px;font-size:14px}
+.sub{color:#5b6475;margin:0 0 16px}.seg{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0}.seg button{border-radius:999px}.seg button.on{background:#1d4ed8;color:#fff;border-color:#1d4ed8}
+button{font:inherit;padding:7px 14px;border:1px solid #c9ced8;background:#fff;border-radius:8px;cursor:pointer}button.pri{background:#1d4ed8;color:#fff;border-color:#1d4ed8}
+.form{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}label{display:block;font-size:13px;color:#5b6475}input,select,textarea{width:100%;font:inherit;padding:8px;border:1px solid #c9ced8;border-radius:8px;background:#fff;margin-top:4px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;margin:10px 0}.card,.tpl{background:#fff;border:1px solid #dde1e8;border-radius:12px;padding:16px}.tpl{margin:12px 0}
+textarea.tier,#io{font-family:ui-monospace,Consolas,monospace;font-size:13px;min-height:170px;resize:vertical}pre,code{font-family:ui-monospace,Consolas,monospace;font-size:12.5px;white-space:pre-wrap;word-break:break-word}pre{background:#f3f4f7;border-radius:8px;padding:10px;max-height:220px;overflow:auto}
+.meta{color:#5b6475;font-size:13px}.badge{font-size:12px;background:#e7edff;color:#1d4ed8;padding:2px 8px;border-radius:999px;font-weight:500}ol li{margin:4px 0}table{border-collapse:collapse;width:100%;background:#fff}td,th{border-bottom:1px solid #e3e6ec;padding:8px;text-align:left;vertical-align:top;font-size:14px}#msg{color:#166534;font-weight:500;min-height:1em}
+</style></head><body><div class="wrap">
+<h1>Boolean Generator</h1><p class="sub">Khalsa's three-tier search method: fill in the job, copy Tier 1, and only widen when the results run thin.</p>
+<div class="seg" id="tabs"><button data-t="gen">Generator</button><button data-t="tpl">Templates (<span id="tcount"></span>)</button></div><p id="msg"></p>
+<section id="gen">
+<h2>How to use</h2><ol>
+<li><b>Fill in the job.</b> Title, location, seniority and must-have quals from the order. The role family is picked from the title; change it if wrong.</li>
+<li><b>Run Tier 1 first.</b> Exact title, must-haves and a council anchor on fresh CVs (56 days).</li>
+<li><b>Widen only when thin.</b> Under 10 good CVs, run Tier 2 (synonyms, one key qual, 180 days). Still under 8, run Tier 3 (same string, 365 then 730 days, wider radius).</li>
+<li><b>Narrow with context, not NOT.</b> Too many results? Add a legislation, system or client term (s202, Northgate, EHCP) rather than exclusions.</li>
+<li><b>Start from a template.</b> The Templates tab has Khalsa's own searches; Load one, then tweak.</li></ol>
+<h2>Job details</h2><div class="form">
+<label>Job title<input id="title" value="Senior Housing Options Officer"></label>
+<label>Client / location<input id="loc" value="Slough, SL1"></label>
+<label>Pay rate<input id="pay" value="£28/hr inside IR35"></label>
+<label>Seniority<select id="sen"><option value="junior">Junior</option><option value="mid">Mid</option><option value="senior" selected>Senior</option><option value="manager">Manager</option><option value="head">Head / Director</option></select></label>
+<label>Role family <span id="guess"></span><select id="fam"></select></label>
+<label>Must-haves (comma separated)<input id="must" placeholder="e.g. RTPI, Uniform"></label>
+<label>Nice-to-haves<input id="nice" placeholder="e.g. s202, Locata"></label>
+<label>Exclusions (use sparingly)<input id="excl" placeholder="e.g. trainee"></label></div>
+<p class="meta" id="faminfo"></p>
+<h2>Your three searches</h2><div class="seg" id="plats"></div><p class="meta" id="note"></p><div class="grid3" id="tiers"></div>
+<h2>Save as template</h2><div class="form"><label>Template name<input id="tplname" placeholder="e.g. Bradford Housing Options, senior"></label><label>Author<input id="author" value="Khalsa Singh"></label><label>&nbsp;<button class="pri" id="save" style="width:100%">Save as template</button></label></div>
+<p class="meta">Saves every input, all three tiers in all four formats (including your edits), CV age, radius, author and date. Same name overwrites.</p>
+<h2>Khalsa's rules</h2><ul>
+<li>Always anchor public-sector roles: ( council or councils or "local authority" or "london borough of" or "local government" ).</li>
+<li>Use long OR lists of title synonyms; recruiters name the same job many ways.</li>
+<li>Narrow with context (legislation, systems, regulators), almost never with NOT.</li>
+<li>CV age steps: 56, 90, 180, 365, 730 days.</li>
+<li>Radius: admin 5–14 mi, finance and HR 11–20, care and catering 20–35, senior or niche UK-wide, hard-to-fill up to 200.</li></ul>
+<h2>Example library</h2><table><thead><tr><th>Family</th><th>Search</th><th>Boolean (CV-Library)</th><th></th></tr></thead><tbody id="ex"></tbody></table>
+<p class="meta">Not covered: Social Worker / IRO, Support Worker and cleaner roles.</p>
+</section>
+<section id="tpl" hidden>
+<h2>Saved templates</h2><div class="form"><label>Search<input id="q" placeholder="Name, title or author"></label><label>Role family<select id="ff"></select></label><label>Copy format<select id="tplat"></select></label></div>
+<div id="tlist"></div>
+<h2>Share templates</h2><p class="meta" id="storenote"></p>
+<div class="seg"><button class="pri" id="exp">Export templates (JSON)</button><label style="display:inline-block"><button onclick="document.getElementById('impfile').click()" type="button">Import file…</button><input type="file" id="impfile" accept=".json,application/json" hidden></label><button id="imp">Import pasted JSON</button></div>
+<textarea id="io" placeholder="Exported JSON appears here. To import, paste JSON and press Import pasted JSON."></textarea>
+</section></div>
+<script>
+const RAW = [["Head of / Director, council", "other", "head", "UK-wide", '( "council " ) and ( director or "head of" )'], ["Contract roles, council (IR35)", "other", "mid", "UK-wide", '( "council " ) and ( "outside ir35" or "inside ir35" )'], ["Environmental Protection Officer", "eho", "mid", "UK-wide", '( "Environmental Protection Officer" or EHORB )'], ["Admin Assistant, West Sussex", "admin", "junior", "20 mi from West Sussex", '( "Admin coordinator" or "Admin assistant" or "admin clerk" or "admin executive" or "admin office assistant" or "admin person" or "admin support" or "admin worker" or "administration apprentice" or "administration assistant" or "administration clerk" or "administration co ordinator" or "administration co-ordinator" or "administration coordinator" or "administration executive" or "administration office assistant" or "administration support" or "administration support assistant" or "administrative assistant" or "administrative clerk" or "administrative co ordinator" or "administrative co-ordinator" or "administrative coordinator" or "administrative support" or administrator or "administrator assistant" or "apprentice administrator" or "clerical processor" or "clerical support" )'], ["Business Support Officer, housing, Slough", "admin", "junior", "30 mi from Slough", '( "business support officer" ) and ( housing ) and ( council or councils or "local authority" ) and ( "borough of" or "london borough" or councils or council )'], ["SC / DV cleared candidates", "other", "mid", "UK-wide", '( "sc clearance" or "sc cleared" or "DV clearance" or "DV cleared" )'], ["SEN Case Officer, London", "send", "mid", "20 mi from London", '( "SEN" ) and ( "case officer" or "case handler" or "case worker" or caseworker ) and ( council or councils or "local authority" or "borough of" )'], ["Educational Psychologist, London", "other", "senior", "20 mi from London", '( "psychologist" )'], ["HR Advisor / Officer, Chichester", "hr", "mid", "20 mi from Chichester", '( "hr advisor" or "employee relations adviser" or "employee relations advisor" or "er specialist" or "hr adviser" or "hr analyst" or "hr consultant" or "hr executive" or "hr generalist" or "hr officer" or "hr professional" or "hr specialist" or "human resource officer" or "human resources adviser" or "human resources advisor" or "human resources consultant" or "human resources executive" or "human resources generalist" or "human resources officer" or "human resources professional" ) and ( council or councils or "local authority" or "borough of" or "london Borough" )'], ["Business Support / Admin, Bournemouth", "admin", "junior", "20 mi from Bournemouth", '( "business support officer" or "business support advisor" or "business support exec" or "business support executive" or "Admin coordinator" or "admin assistant" or "admin clerk" or "admin executive" or "admin office assistant" or "admin person" or "admin support" or "admin worker" or "administration apprentice" or "administration assistant" or "administration clerk" or "administration co ordinator" or "administration co-ordinator" or "administration coordinator" or "administration executive" or "administration office assistant" or "administration support" or "administration support assistant" or "administrative assistant" or "administrative clerk" or "administrative co ordinator" or "administrative co-ordinator" or "administrative coordinator" or "administrative support" or administrator or "administrator assistant" or "apprentice administrator" or "clerical processor" or "clerical support" ) and ( "children service" or "children services" ) and ( "adult service" or "adult services" ) and ( council or councils or "local authority" or "Borough of" or "london borough" )'], ["Housing Officer, Slough", "housing", "mid", "15 mi from Slough", '( "housing officer" or "accommodation assessor" or "accommodation officer" or "estate officer" or "home ownership officer" or "housing advisor" or "housing benefits assessor" or "housing benefits officer" or "housing executive" or "housing options officer" or "housing support officer" or "housing support worker" or "income officer" or "leasehold officer" or "neighbourhood housing officer" or "neighbourhood officer" or "officer of housing" or "supported housing officer" or "tenancy support officer" or "tenancy support worker" or "tenant liaison officer" ) and ( council or councils or "local authority" or "borough of" or "london borough" )'], ["Nursery Practitioner (NVQ 3)", "earlyyears", "junior", "UK-wide", '( "Nursery educator" or "childcare practitioner" or "early years practitioner" or "early years worker" or "Nursery officer" or "nursery worker" or "nursery nurse" or "creche worker" or "creche assistant" ) and ( "NVQ level 3" or "nvq 3" or "NVQ L3" )'], ["Theatre Anaesthetic Practitioner / ODP", "other", "mid", "UK-wide", '( "Theatre Anaesthetic Practitioners" or "Operating department practitioner" )'], ["Housing Solutions / Homelessness Officer", "homeless", "mid", "UK-wide", '( "housing solutions" or "Housing options" ) and ( council ) and ( assessment or s202 or s21 )'], ["Family Support Worker, Children with Disabilities", "family", "mid", "UK-wide", '( "family support" or "family worker" or "family practitioner" or nqsw or "newly qualified social work" ) and ( "disabled child" or "children with disabilities" or " CWD" )'], ["SEN Officer (annual reviews / tribunal)", "send", "mid", "UK-wide", '( "SEN" or "Special education need" ) and ( "annual review" or tribunal or mediation or "case officer" )'], ["Head of IT / CIO, housing association (ERP)", "itlead", "head", "UK-wide", '( "housing association" or "social housing" or "nottinghill genesis" or "southern housing" or "place for people" or Sanctuary or "Peabody housing" or "Clarion Housing" or "riverside group" or "Together Housing" or "sovereign housing" or "Origin Housing" or "Swan Housing" or "Octavia Housing" ) and ( northgate or civica ) and ( "head of IT" or "Head of ICT" or "director of IT" or "Director of ICT" or "CIO" or "CTO" or "assistant director of ICT" or "assistant director of IT" )'], ["Accountant, CIPFA/CCAB, council", "finance", "mid", "UK-wide", '( CCAB or CIMA or Cipfa ) and ( accountant ) and ( council or councils or "local authority" or "london borough of" or "local government" )'], ["Project / Delivery Manager, Children's", "project", "manager", "UK-wide", '( "project manager" or "delivery manager" or "delivery lead" ) and ( council or councils or "london borough of" or "local government" ) and ( "DFE" or "department for education" or "children social care" or "child service" or "children service" )'], ["Policy & Scrutiny Officer", "policy", "mid", "UK-wide", '( "Policy officer" or "policy assistant" or "policy specialist" or "policy advisor" or "policy adviser" ) and ( council or council or "local authority" or "london borough of" or "local government" ) and ( scrutiny )'], ["Registered Manager, children's residential (Ofsted)", "caremgr", "manager", "200 mi from E1 1AA", '( "Registered Manager" or "child home manager" or "children home manager" or "child residential manager" ) and ( children or child or CYPS ) and ( ofsted or "Regulation 44" )'], ["Recruitment Consultant (internal hire)", "other", "mid", "13 mi from PR2 5BL", '( "Recruitment adviser" or "candidate consultant" or "candidate liaison officer" or "commercial recruitment consultant" or "executive search consultant" or "head hunter" or "permanents consultant" or recruiter or "recruitment advisor" or "recruitment consultant" or "recruitment executive" or "recruitment officer" or "recruitment professional" or "recruitment specialist" or "temporaries consultant" )'], ["S106 / CIL Officer", "planning", "mid", "150 mi from UB8 1UW", '( "CIL" or S106 ) and ( council or councils or "local authority" or "london borough of" or "local government" ) and ( policy or "local plan" or "spatial plan" )'], ["Reablement Team Leader (LD / residential)", "caremgr", "senior", "200 mi from N1 1XR", '( NVQ4 or "nvq level 4" or "nvq 4" or "QCF 5" or "level 4" or "level 5" or "l 4" or "Reablement Team Leader" or "Team Leader" ) and ("learning disabilities" or "child home" or "residential child")'], ["Senior Commissioner, adults LD", "commissioning", "senior", "UK-wide", '( "senior commissioner" or "lead commissioner" ) and ( council or councils or "local authority" or "london borough of" or "local government" or nhs ) and ( adults or "adult service" or "adult social care" or "older person" or "old people" or "older people" ) and ( disabilities or Autism or "Mental Health" or "learning disabilities" )'], ["Participation / Targeted Youth Officer", "family", "mid", "80 mi from N22 8LE", '( "participation officer" or "youth inclusion" or "targeted youth" ) and ( council or councils or "local authority" or "london borough of" )'], ["Leasehold Officer (s20)", "leasehold", "mid", "UK-wide", '( "home ownership" or leasehold ) and ( council or councils or "local authority" or "london borough of" or "local government" ) and ( s20 or "section 20" )'], ["ASB / Community Safety Officer", "safety", "mid", "150 mi from E1 1AA", '( "community safety" or "ASB" or "Anti- Social Behaviour" or "hate crime" or "violence reduction" ) and ( council or councils or "local authority" or police )'], ["SEN Casework, council (recent search)", "send", "mid", "UK-wide", '( "SEN Casework" or "Send Casework" ) and ( "council " )']];
+const LABELS = { other: "Other / specialist", eho: "Environmental health & regulatory", admin: "Admin & business support", send: "SEND casework", hr: "HR", housing: "Housing management", earlyyears: "Early years & nursery", homeless: "Housing options & homelessness", family: "Family support & youth (non-SW)", itlead: "IT & digital leadership", finance: "Finance & accountancy", project: "Project, programme & transformation", policy: "Policy, governance & elections", caremgr: "Registered care management", planning: "Planning", commissioning: "Commissioning & contracts", leasehold: "Leasehold & home ownership", safety: "Community safety & ASB" };
+function topGroups(s) {
+  const out = [];
+  let depth = 0;
+  let inQ = false;
+  let start = 0;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (c === '"') inQ = !inQ;
+    else if (!inQ && c === "(") depth++;
+    else if (!inQ && c === ")") depth--;
+    else if (!inQ && depth === 0 && s.substr(i, 5).toLowerCase() === " and ") {
+      out.push(s.slice(start, i).trim());
+      start = i + 5;
+      i += 4;
+    }
+  }
+  out.push(s.slice(start).trim());
+  return out.filter((x) => x.length > 0);
+}
+function toPlat(s, p) {
+  if (p === "cvl") return s;
+  const parts = s.split('"');
+  return parts.map((seg, i) => {
+    if (i % 2 === 1) return seg.trim();
+    let x = seg.replace(/\b(and|or|not)\b/gi, (m) => m.toUpperCase()).replace(/\("/g, '( "');
+    if (p === "li") x = x.replace(/\*/g, "");
+    return x;
+  }).join('"');
+}
+function widen(r) {
+  const m = /^(\d+) mi(.*)$/.exec(r);
+  if (!m) return r;
+  const n = parseInt(m[1], 10);
+  return n >= 50 ? "UK-wide" : String(Math.min(n * 2, 50)) + " mi" + m[2];
+}
+const BAKED = RAW.map((r, idx) => {
+  const [name, fam, sen, radius, s] = r;
+  const g = topGroups(s);
+  const isAnchor = (x) => /council|local authority|borough/i.test(x);
+  let g2 = g;
+  if (g.length >= 3) g2 = g.slice(0, g.length - 1);
+  else if (g.length === 2 && !isAnchor(g[1])) g2 = g.slice(0, 1);
+  const t2 = g2.join(" and ");
+  const mk = (x) => ({ cvl: toPlat(x, "cvl"), reed: toPlat(x, "reed"), bh: toPlat(x, "bh"), li: toPlat(x, "li") });
+  return {
+    id: "ks-" + idx,
+    name,
+    family: fam,
+    familyLabel: LABELS[fam] || fam,
+    author: "Khalsa Singh",
+    date: idx === RAW.length - 1 ? "CV-Library recent search, Oct 2026" : "CV-Library watchdog",
+    inputs: { title: name, loc: radius.indexOf(" from ") >= 0 ? radius.split(" from ")[1] : "", sen, famSel: fam === "other" ? "auto" : fam, pay: "", must: "", nice: "", excl: "" },
+    tiers: [
+      { name: "Tier 1, Tight (Khalsa's exact string)", age: "56 days", radius, str: mk(s) },
+      { name: "Tier 2, Broader", age: "180 days", radius, str: mk(t2) },
+      { name: "Tier 3, Extended", age: "365 days, then 730", radius: widen(radius), str: mk(t2) }
+    ]
+  };
+});
+const KEY = "fmg-boolean-templates-v1";
+function loadStore() {
+  try {
+    const raw = window.localStorage.getItem(KEY);
+    return { ok: true, list: raw ? JSON.parse(raw) : [] };
+  } catch (e) {
+    return { ok: false, list: [] };
+  }
+}
+function saveStore(list) {
+  try {
+    window.localStorage.setItem(KEY, JSON.stringify(list));
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+const ANCHOR = ["council", "councils", "local authority", "london borough of", "local government"];
+const FAMS = [
+  { id: "planning", label: "Planning", match: ["planning", "planner", "s106", "cil", "local plan"], tight: ["planning officer"], broad: ["planning officer", "planner", "development management officer", "planning policy officer", "planning enforcement officer", "s106 officer", "CIL officer"], quals: ["RTPI", "MRTPI"], context: ["local plan", "S106", "CIL", "planning applications"], anchor: true },
+  { id: "housing", label: "Housing management", match: ["housing", "tenancy", "estate officer", "income officer", "neighbourhood"], tight: ["housing officer"], broad: ["housing officer", "tenancy officer", "tenancy management officer", "estate officer", "neighbourhood housing officer", "income officer", "housing support officer", "tenant liaison officer", "supported housing officer"], quals: ["CIH"], context: ["social housing", "housing association", "Housing Act"], anchor: true },
+  { id: "homeless", label: "Housing options & homelessness", match: ["homeless", "housing options", "housing solutions", "temporary accommodation"], tight: ["housing options officer"], broad: ["housing options officer", "housing solutions officer", "homelessness prevention officer", "homeless assessment officer", "temporary accommodation officer", "tenancy sustainment officer"], quals: [], context: ["Part 7", "Part VII", "Homelessness Reduction Act", "s202", "s21"], anchor: true },
+  { id: "leasehold", label: "Leasehold & home ownership", match: ["leasehold", "home ownership", "service charge"], tight: ["leasehold officer"], broad: ["leasehold officer", "home ownership officer", "leasehold manager", "service charge officer"], quals: [], context: ["s20", "section 20", "service charge"], anchor: true },
+  { id: "finance", label: "Finance & accountancy", match: ["accountant", "finance", "vat", "tax", "accounts"], tight: ["accountant"], broad: ["accountant", "management accountant", "assistant management accountant", "support accountant", "finance business partner", "financial accountant", "finance officer", "finance assistant"], quals: ["CCAB", "CIPFA", "CIMA", "ACCA", "ACA"], context: ["VAT", "capital", "revenue budget", "closedown"], anchor: true },
+  { id: "pensions", label: "Pensions", match: ["pension", "lgps"], tight: ["pensions officer"], broad: ["pensions officer", "pensions administrator", "pensions analyst", "pensions manager", "pensions technical specialist"], quals: ["PMI", "Pensions Management Institute"], context: ["LGPS", "Local Government Pension Scheme"], anchor: true },
+  { id: "revs", label: "Revenues & benefits", match: ["council tax", "revenues", "benefits", "nndr", "business rates"], tight: ["revenues officer"], broad: ["revenues officer", "council tax officer", "benefits officer", "benefits assessor", "NNDR officer", "business rates officer", "recovery officer"], quals: ["IRRV"], context: ["council tax", "housing benefit", "NNDR"], anchor: true },
+  { id: "hr", label: "HR", match: ["hr ", "human resource", "employee relations", "recruitment"], tight: ["hr advisor"], broad: ["hr advisor", "hr adviser", "hr officer", "hr generalist", "hr business partner", "employee relations advisor", "human resources advisor", "human resources officer", "hr administrator", "hr assistant"], quals: ["CIPD"], context: ["employee relations", "TUPE", "casework"], anchor: true },
+  { id: "admin", label: "Admin & business support", match: ["admin", "business support", "bso", "clerk", "coordinator", "receptionist"], tight: ["business support officer"], broad: ["business support officer", "business support assistant", "administration assistant", "administrative assistant", "admin assistant", "administration officer", "admin coordinator", "administration coordinator", "admin clerk", "unit administrator"], quals: [], context: ["minute taking", "diary management"], anchor: true },
+  { id: "send", label: "SEND casework", match: ["send", "sen ", "ehcp", "special educational"], tight: ["SEND case officer"], broad: ["SEND case officer", "SEN caseworker", "SEND caseworker", "SEND case manager", "EHCP coordinator", "EHC plan writer", "case officer"], quals: [], context: ["EHCP", "annual review", "tribunal", "SEND"], anchor: true },
+  { id: "project", label: "Project, programme & transformation", match: ["project", "programme", "transformation", "delivery manager", "pmo", "erp"], tight: ["project manager"], broad: ["project manager", "programme manager", "delivery manager", "delivery lead", "transformation manager", "change manager", "project lead"], quals: ["PRINCE2", "MSP", "APM", "Agile"], context: ["digital transformation", "ERP", "Oracle", "SAP"], anchor: true },
+  { id: "commissioning", label: "Commissioning & contracts", match: ["commission", "contracts", "contract manager"], tight: ["commissioning manager"], broad: ["commissioning manager", "commissioning officer", "senior commissioner", "lead commissioner", "contracts manager", "contracts officer", "contract management officer"], quals: [], context: ["adult social care", "care home", "learning disabilities", "market shaping"], anchor: true },
+  { id: "procurement", label: "Procurement", match: ["procurement", "category", "buyer", "commercial"], tight: ["procurement manager"], broad: ["procurement manager", "procurement officer", "category manager", "commercial manager", "buyer", "procurement lead"], quals: ["MCIPS", "CIPS"], context: ["Procurement Act", "PCR 2015", "tender", "JCT"], anchor: true },
+  { id: "policy", label: "Policy, governance & elections", match: ["policy", "scrutiny", "democratic", "electoral", "member", "governance"], tight: ["policy officer"], broad: ["policy officer", "policy advisor", "policy adviser", "scrutiny officer", "democratic services officer", "electoral services officer", "governance officer", "member services officer"], quals: [], context: ["scrutiny", "elected members", "committee", "electoral"], anchor: true },
+  { id: "foi", label: "FOI, complaints & information governance", match: ["foi", "complaints", "information governance", "subject access", "data protection"], tight: ["complaints officer"], broad: ["complaints officer", "FOI officer", "information governance officer", "data protection officer", "information rights officer", "customer resolution officer"], quals: [], context: ["FOI", "subject access request", "Ombudsman", "GDPR"], anchor: true },
+  { id: "safety", label: "Community safety & ASB", match: ["asb", "anti-social", "community safety", "youth", "victim"], tight: ["ASB officer"], broad: ["ASB officer", "anti social behaviour officer", "community safety officer", "community safety manager", "hate crime officer", "victim support officer", "youth inclusion officer"], quals: [], context: ["ASB", "community safety", "violence reduction"], anchor: true },
+  { id: "eho", label: "Environmental health & regulatory", match: ["environmental health", "eho", "environmental protection", "trading standards", "licensing", "food safety"], tight: ["environmental health officer"], broad: ["environmental health officer", "environmental protection officer", "EHO", "food safety officer", "licensing officer", "trading standards officer", "technical officer"], quals: ["EHORB", "CIEH"], context: ["food safety", "noise", "private sector housing"], anchor: true },
+  { id: "building", label: "Building control & surveying", match: ["building control", "surveyor", "clerk of works", "asset", "estates"], tight: ["building control surveyor"], broad: ["building control surveyor", "building control officer", "building surveyor", "clerk of works", "quantity surveyor", "asset manager"], quals: ["RICS", "CABE", "CIOB", "RBI"], context: ["building regulations", "Building Safety Act"], anchor: true },
+  { id: "highways", label: "Highways & engineering", match: ["highway", "engineer", "traffic", "transport", "drainage", "flood"], tight: ["highways engineer"], broad: ["highways engineer", "highway engineer", "traffic engineer", "civil engineer", "transport planner", "drainage engineer", "highways inspector"], quals: ["ICE", "CEng", "IEng", "NRSWA"], context: ["Mayrise", "Alloy", "highways", "section 278"], anchor: true },
+  { id: "data", label: "Data, insight & BI", match: ["data", "insight", "intelligence", "analyst", "bi "], tight: ["data analyst"], broad: ["data analyst", "insight analyst", "business intelligence analyst", "BI analyst", "business analyst", "performance analyst", "intelligence officer"], quals: [], context: ["Power BI", "visualisation", "SQL", "Tableau"], anchor: true },
+  { id: "itlead", label: "IT & digital leadership", match: ["head of it", "ict", "cio", "cto", "digital"], tight: ["head of IT"], broad: ["head of IT", "head of ICT", "director of IT", "director of ICT", "head of digital", "CIO", "CTO", "IT manager"], quals: [], context: ["Northgate", "Civica", "housing association", "ERP"], anchor: true },
+  { id: "earlyyears", label: "Early years & nursery", match: ["nursery", "early years", "childcare", "creche"], tight: ["nursery practitioner"], broad: ["nursery practitioner", "early years practitioner", "nursery nurse", "nursery officer", "childcare practitioner", "early years worker", "creche worker"], quals: ["NVQ level 3", "NVQ 3", "Level 3"], context: ["EYFS", "Ofsted"], anchor: false },
+  { id: "caremgr", label: "Registered care management", match: ["registered manager", "care home manager", "home manager", "reablement", "team leader"], tight: ["registered manager"], broad: ["registered manager", "care home manager", "registered home manager", "children home manager", "deputy manager", "reablement team leader"], quals: ["NVQ level 5", "Level 5", "QCF 5", "NVQ 4"], context: ["CQC", "Ofsted", "Regulation 44", "domiciliary care"], anchor: false },
+  { id: "family", label: "Family support & youth (non-SW)", match: ["family support", "family worker", "family practitioner", "personal advisor", "participation", "early help"], tight: ["family support worker"], broad: ["family support worker", "family support practitioner", "family practitioner", "family worker", "early help practitioner", "personal advisor", "participation officer"], quals: [], context: ["early help", "parenting assessment", "pathway plan", "children with disabilities"], anchor: true },
+  { id: "publichealth", label: "Public health", match: ["public health"], tight: ["public health consultant"], broad: ["public health consultant", "public health specialist", "public health manager", "public health practitioner", "health improvement officer"], quals: ["UKPHR", "FFPH"], context: ["public health", "NHS"], anchor: true },
+  { id: "catering", label: "Catering & hospitality", match: ["catering", "chef", "cook", "kitchen", "hospitality"], tight: ["catering manager"], broad: ["catering manager", "catering supervisor", "chef manager", "head chef", "cook", "kitchen manager", "hospitality manager"], quals: ["Level 3 Food", "L3 food hygiene", "IOSH", "NEBOSH"], context: ["school catering", "contract catering"], anchor: false },
+  { id: "comms", label: "Communications & engagement", match: ["communications", "comms", "engagement", "marketing", "pr "], tight: ["communications officer"], broad: ["communications officer", "internal communications officer", "engagement officer", "communications manager", "digital communications officer", "marketing officer"], quals: ["CIPR"], context: ["internal communications", "digital", "consultation"], anchor: true }
+];
+const SEN = {
+  junior: { pre: ["assistant", "trainee"], r1: "10 mi", r2: "10 mi", r3: "20 mi" },
+  mid: { pre: [], r1: "15 mi", r2: "15 mi", r3: "30 mi" },
+  senior: { pre: ["senior", "principal", "lead"], r1: "20 mi", r2: "20 mi", r3: "40 mi" },
+  manager: { pre: ["manager", "team leader", "lead"], r1: "25 mi", r2: "UK-wide", r3: "UK-wide" },
+  head: { pre: ["head of", "director", "assistant director"], r1: "UK-wide", r2: "UK-wide", r3: "UK-wide" }
+};
+const split = (s) => s.split(/[,;\n]/).map((x) => x.trim()).filter((x) => x.length > 0);
+const uniq = (a) => {
+  const seen = {};
+  return a.filter((x) => {
+    const k = x.toLowerCase();
+    if (seen[k]) return false;
+    seen[k] = true;
+    return true;
+  });
+};
+function term(t, p) {
+  let x = t.trim();
+  if (p === "li") x = x.replace(/\*/g, "");
+  return /[\s\-&.\/]/.test(x) ? '"' + x + '"' : x;
+}
+function render(groups, nots, p) {
+  const and = p === "cvl" ? " and " : " AND ";
+  const or = p === "cvl" ? " or " : " OR ";
+  const not = p === "cvl" ? " not " : " NOT ";
+  const g = groups.filter((x) => x.length > 0).map((x) => "( " + uniq(x).map((t) => term(t, p)).join(or) + " )");
+  let s = g.join(and);
+  if (nots.length > 0) s += not + (nots.length > 1 ? "( " + nots.map((t) => term(t, p)).join(or) + " )" : term(nots[0], p));
+  return s;
+}
+function guess(title) {
+  const t = " " + title.toLowerCase() + " ";
+  let best = "admin";
+  let score = 0;
+  FAMS.forEach((f) => {
+    f.match.forEach((m) => {
+      if (t.indexOf(m) >= 0 && m.length > score) {
+        score = m.length;
+        best = f.id;
+      }
+    });
+  });
+  return best;
+}
+const EXAMPLES = [
+  { fam: "Housing options", label: "Homeless (Khalsa)", s: '( "housing solutions" or "Housing options" ) and ( council ) and ( assessment or s202 or s21 )' },
+  { fam: "Housing", label: "Housing officer cluster (Khalsa, Bournemouth 30 mi)", s: '( "housing officer" or "accommodation officer" or "estate officer" or "housing options officer" or "housing support officer" or "income officer" or "leasehold officer" or "neighbourhood housing officer" or "tenancy support officer" or "tenant liaison officer" ) and ( council or councils or "local authority" )' },
+  { fam: "Leasehold", label: "Leasehold (Khalsa)", s: '( "home ownership" or leasehold ) and ( council or councils or "local authority" or "london borough of" or "local government" ) and ( s20 or "section 20" )' },
+  { fam: "Finance", label: "CIPFA (Khalsa)", s: '( CCAB or CIMA or Cipfa ) and ( accountant ) and ( council or councils or "local authority" or "london borough of" or "local government" )' },
+  { fam: "SEND", label: "SEND casework (Khalsa, London 20 mi)", s: '( "SEN" ) and ( "case officer" or "case handler" or "case worker" or caseworker ) and ( council or councils or "local authority" or "borough of" )' },
+  { fam: "Project", label: "Project Manager, Children (Khalsa)", s: '( "project manager" or "delivery manager" or "delivery lead" ) and ( council or councils or "london borough of" or "local government" ) and ( "DFE" or "department for education" or "children social care" or "child service" or "children service" )' },
+  { fam: "Commissioning", label: "LD Commissioner (Khalsa)", s: '( "senior commissioner" or "lead commissioner" ) and ( council or councils or "local authority" or "london borough of" or "local government" or nhs ) and ( adults or "adult social care" or "older people" ) and ( disabilities or Autism or "Mental Health" or "learning disabilities" )' },
+  { fam: "Policy", label: "Policy & Scrutiny (Khalsa)", s: '( "Policy officer" or "policy assistant" or "policy specialist" or "policy advisor" or "policy adviser" ) and ( council or "local authority" or "london borough of" or "local government" ) and ( scrutiny )' },
+  { fam: "Planning", label: "S106 / CIL (Khalsa, 150 mi)", s: '( "CIL" or S106 ) and ( council or councils or "local authority" or "london borough of" or "local government" ) and ( policy or "local plan" or "spatial plan" )' },
+  { fam: "Community safety", label: "ASB, Council (Khalsa, 150 mi)", s: '( "community safety" or "ASB" or "Anti- Social Behaviour" or "hate crime" or "violence reduction" ) and ( council or councils or "local authority" or police )' },
+  { fam: "Early years", label: "Nursery (Khalsa)", s: '( "Nursery educator" or "childcare practitioner" or "early years practitioner" or "Nursery officer" or "nursery worker" or "nursery nurse" ) and ( "NVQ level 3" or "nvq 3" or "NVQ L3" )' },
+  { fam: "Care management", label: "Children residential Ofsted manager (Khalsa, 200 mi)", s: '( "Registered Manager" or "child home manager" or "children home manager" ) and ( children or child or CYPS ) and ( ofsted or "Regulation 44" )' },
+  { fam: "IT leadership", label: "ERP Housing (Khalsa)", s: '( "housing association" or "social housing" ) and ( northgate or civica ) and ( "head of IT" or "Head of ICT" or "director of IT" or "CIO" or "CTO" )' },
+  { fam: "Environmental health", label: "EHO", s: '( "Environmental Protection Officer" or EHORB )' },
+  { fam: "Senior / any", label: "Head of, council (Khalsa)", s: '( "council " ) and ( director or "head of" )' },
+  { fam: "Highways / BI", label: "BI Lead, Newham", s: '( "Business Intelligence" or "BI Lead" or "Senior Business Analyst" ) and ( Mayrise or Alloy ) and ( Council or "Local Authority" or "Borough of" )' },
+  { fam: "Revenues", label: "Council Tax", s: '( "Council Tax" or "CT Officer" or "Revenues Officer" or "Benefits Officer" ) and ( council or "Local Authority" or "Borough of" or "Local government" )' },
+  { fam: "HR", label: "HR Advisor (ER)", s: '( "HR Advisor" or "HR Adviser" or "HR Generalist" or "HR Officer" ) and ( "Employee Relation" or TUPE ) and ( Council or "Local Authority" or "Borough of" or "local government" )' }
+];
+
+var KEYS=["cvl","reed","bh","li"],PN={cvl:"CV-Library",reed:"Reed",bh:"Bullhorn",li:"LinkedIn Recruiter"};
+var NOTE={cvl:"CV-Library: lowercase and/or/not are fine. Set CV age with 'CV updated within' and radius with Distance.",reed:"Reed: upper-case AND/OR/NOT, quotes for phrases. Set 'CV last updated' and Distance in the filters.",bh:"Bullhorn: upper-case operators, multi-word phrases in double quotes, no stray spaces inside quotes. Filter by Date Last Modified for CV age.",li:"LinkedIn Recruiter: upper-case operators, no wildcards (*), quotes for phrases. No CV-age filter, so use 'Open to work' and recent activity."};
+var st={plat:"cvl",edits:{},mine:[],storeOk:true};
+function $(id){return document.getElementById(id)}
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function v(id){return $(id).value}
+function famNow(){var s=v("fam");return FAMS.find(function(f){return f.id===(s==="auto"?guess(v("title")):s)})||FAMS[0]}
+function tiers(){
+ var fam=famNow(),sen=v("sen"),s=SEN[sen],t=v("title").trim().toLowerCase(),loc=v("loc");
+ var base=t.replace(/^(senior|principal|lead|assistant|trainee|interim|head of|deputy)\s+/,"");
+ var tight=uniq([t,base].filter(function(x){return x}).concat(s.pre.length&&sen!=="manager"&&sen!=="head"?s.pre.map(function(p){return p+" "+base}):[]));
+ var must=split(v("must")),nice=split(v("nice")),nots=split(v("excl"));
+ var anchor=fam.anchor&&!/nhs|private/i.test(loc)?ANCHOR:[];
+ var g1=[tight];must.forEach(function(m){g1.push([m])});if(!must.length&&fam.quals.length)g1.push(fam.quals);g1.push(anchor);
+ var g2=[uniq([base].concat(fam.broad).concat(sen==="senior"?s.pre.map(function(p){return p+" "+base}):[]))];
+ var key=must.length?must.concat(fam.quals):nice.length?nice.concat(fam.context):[];if(key.length)g2.push(key);g2.push(anchor);
+ return [{name:"Tier 1, Tight",g:g1,age:"56 days",radius:s.r1,next:"Fewer than 10 relevant CVs? Move to Tier 2."},{name:"Tier 2, Broader",g:g2,age:"180 days",radius:s.r2,next:"Fewer than 8 relevant CVs? Move to Tier 3."},{name:"Tier 3, Extended",g:g2,age:"365 days, then 730",radius:s.r3,next:"Still thin? Rerun at 730 days, add a context term, or ask Khalsa."}].map(function(x){x.nots=nots;return x});
+}
+function copy(text,btn){var done=function(){var o=btn.textContent;btn.textContent="Copied";setTimeout(function(){btn.textContent=o},1200)};
+ if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(text).then(done,function(){fb()})}else fb();
+ function fb(){var ta=document.createElement("textarea");ta.value=text;document.body.appendChild(ta);ta.select();try{document.execCommand("copy")}catch(e){}ta.remove();done()}}
+function msg(m){$("msg").textContent=m}
+function renderGen(){
+ var fam=famNow(),T=tiers(),loc=v("loc");
+ $("guess").textContent="Suggested: "+(FAMS.find(function(f){return f.id===guess(v("title"))})||FAMS[0]).label;
+ $("faminfo").innerHTML="<b>Family:</b> "+esc(fam.label)+" &nbsp; <b>Quals:</b> "+esc(fam.quals.join(", ")||"none typical")+" &nbsp; <b>Narrow with:</b> "+esc(fam.context.join(", "));
+ $("note").textContent=NOTE[st.plat];
+ var h="";T.forEach(function(t,i){var k=st.plat+i,gen=render(t.g,t.nots,st.plat),ed=st.edits[k]!==undefined,str=ed?st.edits[k]:gen;
+  h+='<div class="card"><h3>'+t.name+(ed?" (edited)":"")+'</h3><textarea data-k="'+k+'" class="tier" id="tier'+i+'">'+esc(str)+'</textarea><p class="meta">CV age: <b>'+t.age+'</b> · Radius: <b>'+esc(t.radius+(loc.trim()?" from "+loc:""))+'</b></p><p>'+t.next+'</p><button class="pri" data-copy="tier'+i+'">Copy</button> '+(ed?'<button data-reset="'+k+'">Reset to generated</button>':"")+'</div>'});
+ $("tiers").innerHTML=h;
+ document.querySelectorAll(".tier").forEach(function(a){a.oninput=function(){st.edits[a.dataset.k]=a.value}});
+ document.querySelectorAll("[data-copy]").forEach(function(b){b.onclick=function(){copy($(b.dataset.copy).value,b)}});
+ document.querySelectorAll("[data-reset]").forEach(function(b){b.onclick=function(){delete st.edits[b.dataset.reset];renderGen()}});
+ document.querySelectorAll("#plats button").forEach(function(b){b.classList.toggle("on",b.dataset.p===st.plat)});
+}
+function load(){try{var r=localStorage.getItem(KEY);st.mine=r?JSON.parse(r):[];st.storeOk=true}catch(e){st.storeOk=false}}
+function persist(){try{localStorage.setItem(KEY,JSON.stringify(st.mine));st.storeOk=true}catch(e){st.storeOk=false}}
+function saveTpl(){var T=tiers(),fam=famNow(),name=v("tplname").trim()||v("title").trim()||"Untitled search";
+ var tt=T.map(function(t,i){var s={};KEYS.forEach(function(p){var e=st.edits[p+i];s[p]=e!==undefined?e:render(t.g,t.nots,p)});return{name:t.name,age:t.age,radius:t.radius,str:s}});
+ var ins={};["title","loc","sen","pay","must","nice","excl"].forEach(function(k){ins[k]=v(k)});ins.famSel=v("fam");
+ st.mine=[{id:String(Date.now()),name:name,family:fam.id,familyLabel:fam.label,author:v("author").trim()||"Unknown",date:new Date().toLocaleDateString("en-GB"),inputs:ins,tiers:tt}].concat(st.mine.filter(function(m){return m.name!==name}));
+ persist();msg('Saved "'+name+'".'+(st.storeOk?"":" (Browser storage unavailable: export before closing.)"));renderTpl()}
+function loadTpl(t){["title","loc","sen","pay","must","nice","excl"].forEach(function(k){$(k).value=t.inputs[k]||""});$("fam").value=t.inputs.famSel||"auto";
+ st.edits={};t.tiers.forEach(function(tr,i){KEYS.forEach(function(p){if(tr.str[p])st.edits[p+i]=tr.str[p]})});$("tplname").value=t.name;tab("gen");renderGen();msg('Loaded "'+t.name+'".')}
+function all(){return BAKED.concat(st.mine)}
+function renderTpl(){var q=v("q").toLowerCase(),ff=v("ff"),p=v("tplat");
+ var list=all().filter(function(t){return(ff==="all"||t.family===ff)&&(!q||(t.name+" "+t.inputs.title+" "+t.familyLabel+" "+t.author).toLowerCase().indexOf(q)>=0)});
+ $("tcount").textContent=all().length;
+ var h=list.length?"":"<p>"+(all().length?"Nothing matches that search.":"No templates yet.")+"</p>";
+ list.forEach(function(t){var b=BAKED.indexOf(t)>=0;
+  h+='<div class="tpl"><h3>'+esc(t.name)+(b?' <span class="badge">Khalsa\'s template</span>':"")+'</h3><p class="meta">'+esc(t.familyLabel+" · "+t.author+" · "+t.date)+'</p><div class="grid3">';
+  t.tiers.forEach(function(tr,i){var id="t_"+t.id+"_"+i;h+='<div class="card"><h4>'+esc(tr.name)+'</h4><p class="meta">'+esc(tr.age+" · "+tr.radius)+'</p><pre id="'+id+'">'+esc(tr.str[p]||"")+'</pre><button data-copy2="'+id+'">Copy</button></div>'});
+  h+='</div><button class="pri" data-load="'+esc(t.id)+'">Load into generator</button> '+(b?"":'<button data-del="'+esc(t.id)+'">Delete</button>')+'</div>'});
+ $("tlist").innerHTML=h;
+ document.querySelectorAll("[data-copy2]").forEach(function(x){x.onclick=function(){copy($(x.dataset.copy2).textContent,x)}});
+ document.querySelectorAll("[data-load]").forEach(function(x){x.onclick=function(){loadTpl(all().find(function(t){return t.id===x.dataset.load}))}});
+ document.querySelectorAll("[data-del]").forEach(function(x){x.onclick=function(){if(confirm("Delete this template?")){st.mine=st.mine.filter(function(m){return m.id!==x.dataset.del});persist();renderTpl()}}});
+ $("storenote").textContent=st.storeOk?"Templates you save stay in this browser on this computer. To share, Export and send the file; colleagues Import it.":"This browser won't let the page store anything, so templates last only until you close it. Export before closing.";
+}
+function tab(n){$("gen").hidden=n!=="gen";$("tpl").hidden=n!=="tpl";document.querySelectorAll("#tabs button").forEach(function(b){b.classList.toggle("on",b.dataset.t===n)});if(n==="tpl")renderTpl()}
+function init(){
+ var fo='<option value="auto">Auto from title</option>'+FAMS.map(function(f){return'<option value="'+f.id+'">'+esc(f.label)+'</option>'}).join("");$("fam").innerHTML=fo;
+ $("ff").innerHTML='<option value="all">All families</option>'+FAMS.map(function(f){return'<option value="'+f.id+'">'+esc(f.label)+'</option>'}).join("")+'<option value="other">Other / specialist</option>';
+ $("tplat").innerHTML=KEYS.map(function(k){return'<option value="'+k+'">'+PN[k]+'</option>'}).join("");
+ $("plats").innerHTML=KEYS.map(function(k){return'<button data-p="'+k+'">'+PN[k]+'</button>'}).join("");
+ document.querySelectorAll("#plats button").forEach(function(b){b.onclick=function(){st.plat=b.dataset.p;renderGen()}});
+ document.querySelectorAll("#tabs button").forEach(function(b){b.onclick=function(){msg("");tab(b.dataset.t)}});
+ ["title","loc","pay","must","nice","excl"].forEach(function(id){$(id).addEventListener("input",renderGen)});["sen","fam"].forEach(function(id){$(id).addEventListener("change",renderGen)});
+ $("q").addEventListener("input",renderTpl);["ff","tplat"].forEach(function(id){$(id).addEventListener("change",renderTpl)});
+ $("save").onclick=saveTpl;
+ $("exp").onclick=function(){var j=JSON.stringify(st.mine,null,1);$("io").value=j;var a=document.createElement("a");a.href=URL.createObjectURL(new Blob([j],{type:"application/json"}));a.download="boolean-templates.json";document.body.appendChild(a);a.click();a.remove()};
+ $("impfile").onchange=function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){$("io").value=r.result;imp()};r.readAsText(f)};
+ $("imp").onclick=imp;
+ $("ex").innerHTML=EXAMPLES.map(function(e,i){return'<tr><td>'+esc(e.fam)+'</td><td>'+esc(e.label)+'</td><td><code id="ex'+i+'">'+esc(e.s)+'</code></td><td><button data-copy3="ex'+i+'">Copy</button></td></tr>'}).join("");
+ document.querySelectorAll("[data-copy3]").forEach(function(x){x.onclick=function(){copy($(x.dataset.copy3).textContent,x)}});
+ load();renderGen();tab("gen");
+}
+function imp(){try{var arr=JSON.parse($("io").value);if(!Array.isArray(arr))throw 0;var ids={};st.mine.forEach(function(m){ids[m.id]=1});var add=arr.filter(function(a){return a&&a.id&&a.tiers&&!ids[a.id]});st.mine=st.mine.concat(add);persist();msg("Imported "+add.length+" template(s).");renderTpl()}catch(e){msg("That isn't valid template JSON.")}}
+document.addEventListener("DOMContentLoaded",init);
+
+</script></body></html>
