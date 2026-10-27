@@ -116,7 +116,7 @@ function toPlat(s, p) {
   if (p === "cvl") return s;
   const parts = s.split('"');
   return parts.map((seg, i) => {
-    if (i % 2 === 1) return seg.trim();
+    if (i % 2 === 1) return (!/^\s/.test(seg) && /\s$/.test(seg)) ? seg.replace(/\s+$/, " ") : seg.trim();
     let x = seg.replace(/\b(and|or|not)\b/gi, (m) => m.toUpperCase()).replace(/\("/g, '( "');
     if (p === "li") x = x.replace(/\*/g, "");
     return x;
@@ -152,6 +152,26 @@ const BAKED = RAW.map((r, idx) => {
     ]
   };
 });
+(function () {
+  const mk = (x) => ({ cvl: toPlat(x, "cvl"), reed: toPlat(x, "reed"), bh: toPlat(x, "bh"), li: toPlat(x, "li") });
+  const t1 = '( Minutes or minuting or "taking minutes" or "minute taking" ) and ( "Council " or "NHS " or "police " ) and ( Policy or project or strategy ) and ( diary or diaries )';
+  const t2 = '( Minutes or minuting or "taking minutes" or "minute taking" or agendas or "board papers" ) and ( "Council " or "NHS " or "police " or "local authority" or "public sector" ) and ( Policy or project or strategy or "business support" or PA ) and ( diary or diaries or "diary management" )';
+  const t3 = '( Minutes or minuting or "taking minutes" or "minute taking" or agendas or "board papers" ) and ( "Council " or "NHS " or "police " or "local authority" or "public sector" ) and ( diary or diaries or "diary management" )';
+  BAKED.push({
+    id: "ks-policy-strategy-support",
+    name: "Policy / Strategy Support Officer (Council)",
+    family: "admin",
+    familyLabel: "Admin / Business Support",
+    author: "Khalsa Singh",
+    date: "Khalsa's search",
+    inputs: { title: "Policy / Strategy Support Officer", loc: "", sen: "mid", famSel: "admin", pay: "", must: "minute taking, diary, Policy, project, strategy", nice: "", excl: "" },
+    tiers: [
+      { name: "Tier 1, Tight (Khalsa's exact string)", age: "56 days", radius: "UK-wide", str: mk(t1) },
+      { name: "Tier 2, Broader", age: "180 days", radius: "UK-wide", str: mk(t2) },
+      { name: "Tier 3, Extended", age: "Extend the registered/updated timeframe", radius: "UK-wide", str: mk(t3) }
+    ]
+  });
+})();
 const KEY = "fmg-boolean-templates-v1";
 function loadStore() {
   try {
@@ -217,9 +237,11 @@ const uniq = (a) => {
   });
 };
 function term(t, p) {
-  let x = t.trim();
+  const raw = String(t);
+  const keepTrail = !/^\s/.test(raw) && /\s$/.test(raw);
+  let x = keepTrail ? raw.replace(/\s+$/, " ") : raw.trim();
   if (p === "li") x = x.replace(/\*/g, "");
-  return /[\s\-&.\/]/.test(x) ? '"' + x + '"' : x;
+  return (keepTrail || /[\s\-&.\/]/.test(x)) ? '"' + x + '"' : x;
 }
 function render(groups, nots, p) {
   const and = p === "cvl" ? " and " : " AND ";
@@ -267,13 +289,55 @@ const EXAMPLES = [
 
 var KEYS=["cvl","reed","bh","li"],PN={cvl:"CV-Library",reed:"Reed",bh:"Bullhorn",li:"LinkedIn Recruiter"};
 var NOTE={cvl:"CV-Library: lowercase and/or/not are fine. Set CV age with 'CV updated within' and radius with Distance.",reed:"Reed: upper-case AND/OR/NOT, quotes for phrases. Set 'CV last updated' and Distance in the filters.",bh:"Bullhorn: upper-case operators, multi-word phrases in double quotes, no stray spaces inside quotes. Filter by Date Last Modified for CV age.",li:"LinkedIn Recruiter: upper-case operators, no wildcards (*), quotes for phrases. No CV-age filter, so use 'Open to work' and recent activity."};
-var st={plat:"cvl",edits:{},mine:[],storeOk:true,jdOn:false};
+var st={plat:"cvl",edits:{},mine:[],storeOk:true,jdOn:false,jdText:""};
 var jdMeta={};
 function $(id){return document.getElementById(id)}
 function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 function v(id){return $(id).value}
 function famNow(){var s=v("fam");return FAMS.find(function(f){return f.id===(s==="auto"?guess(v("title")):s)})||FAMS[0]}
+function hasMinuteDiary(text){
+ return /\b(minutes?|minuting|minute[- ]taking|taking minutes)\b/i.test(text)&&/\b(diar(?:y|ies)|diary management)\b/i.test(text);
+}
+function functionContext(text){
+ if(/\b(policy|strategy)\b/i.test(text)) return {tight:["Policy","project","strategy"],broad:["Policy","project","strategy","business support","PA"]};
+ var m=String(text||"").match(/\b(?:the|our)\s+([a-z][a-z]+(?:\s+[a-z][a-z]+){0,2})\s+(?:team|unit|service)\b/i);
+ if(m){
+  var words=m[1].split(/\s+/).filter(function(w){return !/^(support|business|senior|corporate|the)$/i.test(w)});
+  if(words.length) return {tight:words,broad:words.concat(["business support","PA"])};
+ }
+ return {tight:[],broad:[]};
+}
+function dutyGroups(){
+ if(!st.jdText||!hasMinuteDiary(st.jdText)) return null;
+ var must=v("must")||"", mustL=must.toLowerCase();
+ var minOn=/\bminute/i.test(must), diaOn=/\bdiar/i.test(must);
+ if(!minOn&&!diaOn) return null;
+ var ctx=functionContext(st.jdText+"\n"+v("title"));
+ var ctxTight=ctx.tight.filter(function(t){return mustL.indexOf(t.toLowerCase())>=0});
+ var ctxBroad=ctx.broad.filter(function(t){
+  return ctx.tight.some(function(x){return x.toLowerCase()===t.toLowerCase()})?mustL.indexOf(t.toLowerCase())>=0:true;
+ });
+ var minT=["Minutes","minuting","taking minutes","minute taking"];
+ var minB=minT.concat(["agendas","board papers"]);
+ var diaT=["diary","diaries"];
+ var diaB=diaT.concat(["diary management"]);
+ var secT=["Council ","NHS ","police "];
+ var secB=secT.concat(["local authority","public sector"]);
+ var g1=[], g2=[];
+ if(minOn){g1.push(minT);g2.push(minB)}
+ g1.push(secT);g2.push(secB);
+ if(ctxTight.length) g1.push(ctxTight);
+ if(ctxBroad.length) g2.push(ctxBroad);
+ if(diaOn){g1.push(diaT);g2.push(diaB)}
+ var g3=ctxBroad.length?g2.filter(function(g){return g!==ctxBroad}):g2.slice();
+ return {g1:g1,g2:g2,g3:g3};
+}
 function tiers(){
+ var duty=dutyGroups();
+ if(duty){
+  var senD=v("sen"), sD=SEN[senD]||SEN.mid, notsD=split(v("excl"));
+  return [{name:"Tier 1, Tight",g:duty.g1,age:"56 days",radius:sD.r1,next:"Fewer than 10 relevant CVs? Move to Tier 2."},{name:"Tier 2, Broader",g:duty.g2,age:"180 days",radius:sD.r2,next:"Fewer than 8 relevant CVs? Move to Tier 3."},{name:"Tier 3, Extended",g:duty.g3,age:"Extend the registered/updated timeframe",radius:sD.r3,next:"Extend the registered/updated timeframe."}].map(function(x){x.nots=notsD;return x});
+ }
  var fam=famNow(),sen=v("sen"),s=SEN[sen],t=v("title").trim().toLowerCase(),loc=v("loc");
  var base=t.replace(/^(senior|principal|lead|assistant|trainee|interim|head of|deputy)\s+/,"");
  var tight=uniq([t,base].filter(function(x){return x}).concat(s.pre.length&&sen!=="manager"&&sen!=="head"?s.pre.map(function(p){return p+" "+base}):[]));
@@ -310,7 +374,7 @@ function saveTpl(){var T=tiers(),fam=famNow(),name=v("tplname").trim()||v("title
  st.mine=[{id:String(Date.now()),name:name,family:fam.id,familyLabel:fam.label,author:v("author").trim()||"Unknown",date:new Date().toLocaleDateString("en-GB"),inputs:ins,tiers:tt}].concat(st.mine.filter(function(m){return m.name!==name}));
  persist();msg('Saved "'+name+'".'+(st.storeOk?"":" (Browser storage unavailable: export before closing.)"));renderTpl()}
 function loadTpl(t){["title","loc","sen","pay","must","nice","excl"].forEach(function(k){$(k).value=t.inputs[k]||""});$("fam").value=t.inputs.famSel||"auto";
- st.jdOn=false;st.edits={};t.tiers.forEach(function(tr,i){KEYS.forEach(function(p){if(tr.str[p])st.edits[p+i]=tr.str[p]})});$("tplname").value=t.name;tab("gen");renderGen();msg('Loaded "'+t.name+'".')}
+ st.jdOn=false;st.jdText="";st.edits={};t.tiers.forEach(function(tr,i){KEYS.forEach(function(p){if(tr.str[p])st.edits[p+i]=tr.str[p]})});$("tplname").value=t.name;tab("gen");renderGen();msg('Loaded "'+t.name+'".')}
 function all(){return BAKED.concat(st.mine)}
 function renderTpl(){var q=v("q").toLowerCase(),ff=v("ff"),p=v("tplat");
  var list=all().filter(function(t){return(ff==="all"||t.family===ff)&&(!q||(t.name+" "+t.inputs.title+" "+t.familyLabel+" "+t.author).toLowerCase().indexOf(q)>=0)});
@@ -529,15 +593,34 @@ function skillFromBullet(line){
  return tidyTerm(bit);
 }
 function capTerms(terms){
- var pri={system:1,legislation:2,qualification:3,regulator:4,comment:5,skill:6,context:7,exclude:1};
- var musts=terms.filter(function(t){return t.bucket==="must"}).sort(function(a,b){return (pri[a.kind]||9)-(pri[b.kind]||9)});
+ var pri={duty:0,system:1,legislation:2,qualification:3,regulator:4,comment:5,skill:6,context:7,exclude:1};
+ var rank=function(k){var n=pri[k];return n===undefined?9:n};
+ var musts=terms.filter(function(t){return t.bucket==="must"}).sort(function(a,b){return rank(a.kind)-rank(b.kind)});
  musts.forEach(function(t,i){if(i>=5)t.bucket="nice"});
- var nices=terms.filter(function(t){return t.bucket==="nice"}).sort(function(a,b){return (pri[a.kind]||9)-(pri[b.kind]||9)});
+ var nices=terms.filter(function(t){return t.bucket==="nice"}).sort(function(a,b){return rank(a.kind)-rank(b.kind)});
  var niceKeep={};
  nices.forEach(function(t,i){if(i<8)niceKeep[t.text.toLowerCase()]=1});
  return terms.filter(function(t){if(t.bucket==="excl"||t.bucket==="must")return true;return !!niceKeep[t.text.toLowerCase()]});
 }
+function isSoft(s){
+ return /\b(communication|interpersonal|organisational|organizational|team\s*work|team player|flexible|flexibility|resilien|stakeholder|confidential|attention to detail|microsoft|outlook|\bexcel\b|\bword\b|proactive|enthusiastic|literate|numeracy|time management|can do|positive attitude|work under pressure)\b/i.test(s);
+}
+function extractDutyTerms(text,sections){
+ var terms=[];
+ addTerm(terms,{text:"minute taking",bucket:"must",kind:"duty"});
+ addTerm(terms,{text:"diary",bucket:"must",kind:"duty"});
+ functionContext(text).tight.forEach(function(c){addTerm(terms,{text:c,bucket:"must",kind:"context"})});
+ sections.comments.split(/[\n.;]+/).forEach(function(part){
+  var item=parseCommentLine(part);
+  if(!item||!item.text||isSoft(item.text))return;
+  if(/^(CIH|CIPD|CIPFA|CIMA|ACCA|ACA|CCAB|RTPI|MRTPI|RICS|MRICS|MCIPS|CIPS|PRINCE2|NEBOSH|IOSH|IRRV|CIEH|EHORB|NVQ(?: level)? \d|level \d|degree)$/i.test(item.text))return;
+  if(/\b(minute|minuting|diary|diaries|agenda|board papers|policy|strateg(?:y|ies)|project)\b/i.test(item.text))return;
+  addTerm(terms,item);
+ });
+ return capTerms(terms);
+}
 function extractTerms(text,sections,famId){
+ if(hasMinuteDiary(text)) return extractDutyTerms(text,sections);
  var terms=[];
  JD_SYSTEMS.forEach(function(row){findMatches(row[1],text).forEach(function(hit){addTerm(terms,{text:row[0],bucket:bucketFromMatch(hit,sections),kind:"system"})})});
  JD_LEGS.forEach(function(row){findMatches(row[0],text).forEach(function(hit){addTerm(terms,{text:row[1](hit),bucket:bucketFromMatch(hit,sections),kind:"legislation"})})});
@@ -566,11 +649,13 @@ function buildFromJd(){
  if(!text){jdStatus("Paste a job description or upload a file first.",true);return}
  var a=analyseJd(text);
  if(!a.title&&!a.terms.length){jdStatus("Couldn't find a job title or search terms. Paste a bit more of the JD, including the title.",true);return}
+ st.jdText=text;
  $("title").value=a.title||"";
  $("loc").value=a.loc||"";
  $("pay").value=a.pay||"";
  $("sen").value=a.sen||"mid";
- if(a.famId&&FAMS.some(function(f){return f.id===a.famId}))$("fam").value=a.famId;
+ if(hasMinuteDiary(text))$("fam").value="admin";
+ else if(a.famId&&FAMS.some(function(f){return f.id===a.famId}))$("fam").value=a.famId;
  jdMeta={};
  var buckets={must:[],nice:[],excl:[]};
  a.terms.forEach(function(t){var k=t.text.toLowerCase();if(jdMeta[k])return;jdMeta[k]={kind:t.kind};(buckets[t.bucket]||buckets.must).push(t.text)});
@@ -578,7 +663,7 @@ function buildFromJd(){
  $("nice").value=buckets.nice.join(", ");
  $("excl").value=buckets.excl.join(", ");
  st.jdOn=true;st.edits={};renderGen();
- var fam=FAMS.find(function(f){return f.id===a.famId});
+ var fam=famNow();
  var senLabel=($("sen").selectedOptions[0]&&$("sen").selectedOptions[0].textContent)||a.sen;
  var bits=[a.title,fam?fam.label:"",senLabel,a.loc].filter(Boolean);
  jdStatus("Built a search"+(bits.length?" for "+bits.join(" · "):"")+". Tweak the chips or the fields, then copy Tier 1.",false);
